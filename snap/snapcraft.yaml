@@ -1,0 +1,107 @@
+name: mullvad-vpn-client # you probably want to 'snapcraft register <name>'
+base: core22 # the base snap is the execution environment for this snap
+version: '2024.1' # just for humans, typically '1.2+git' or '1.3.2'
+summary: The Mullvad VPN client app for desktop and mobile # 79 char long summary
+description: |
+  The Mullvad VPN client app for desktop and mobile 
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+parts:
+  mullvad-app:
+    plugin: dump
+    source: 
+      - on amd64: https://github.com/mullvad/mullvadvpn-app/releases/download/2024.1/MullvadVPN-2024.1_amd64.deb
+      - on arm64: https://github.com/mullvad/mullvadvpn-app/releases/download/2024.1/MullvadVPN-2024.1_arm64.deb
+    source-type: deb
+
+  mullvad-gui-wrapper:
+    plugin: dump
+    source: .
+    prime: 
+      - wrapper.sh
+ 
+  # TO BUILD FROM SOURCE
+  #  rust-deps:
+  #    plugin: nil
+  #    override-pull: |
+  #      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+  #
+  #  protobuf:
+  #    after: [ rust-deps ]
+  #    source: https://github.com/protocolbuffers/protobuf.git
+  #    source-depth: 1
+  #    source-tag: v24.3
+  #    plugin: cmake
+  #    build-environment:
+  #      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+  #    build-packages:
+  #      - zlib1g-dev
+  #    cmake-generator: Ninja
+  #    cmake-parameters:
+  #      - -DCMAKE_BUILD_TYPE=Release
+ # #      - -DCMAKE_INSTALL_PREFIX=/usr
+  #      - -DBUILD_SHARED_LIBS=ON
+  #      - -Dprotobuf_BUILD_TESTS=OFF
+  #
+  #  node:
+  #    plugin: dump
+  #    source: https://nodejs.org/dist/v18.18.2/node-v18.18.2-linux-x64.tar.xz
+  #    stage:
+  #      - bin
+  #      - include
+  #      - lib
+  #  
+  #  mullvad-vpn:
+  #    after: [ rust-deps, protobuf, node ]
+  #    plugin: rust
+  #    source: . 
+  #    source-type: git
+  #    build-environment:
+  #      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+  #      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+  #    source-submodules:
+  #      - dist-assets/binaries 
+  #    override-build: |
+  #      ./build.sh --optimize
+  #      dpkg -x $SNAPCRAFT_PART_BUILD/dist/MullvadVPN-2023.5-dev-dd1876_amd64.deb $SNAPCRAFT_PART_INSTALL/
+  #    build-packages:
+  #      - golang
+  #      - gcc 
+  #      - libdbus-1-dev
+  #      - rpm
+  #      - dpkg
+  #    
+
+apps:
+  mullvad-daemon:
+    command: usr/bin/mullvad-daemon
+    daemon: simple
+    environment: 
+      PATH: $PATH:$SNAP/usr/bin
+  
+  mullvad:
+    command: usr/bin/mullvad
+    environment: 
+      PATH: $PATH:$SNAP/usr/bin
+
+  mullvad-exclude:
+    command: usr/bin/mullvad-exclude
+    environment: 
+      PATH: $PATH:$SNAP/usr/bin
+ 
+  mullvad-vpn:
+    command: wrapper.sh
+    extensions: [gnome]
+    desktop: usr/share/applications/mullvad-vpn.desktop
+    environment: 
+      PATH: $PATH:$SNAP/usr/bin
+
+
+layout:
+  /var/cache/mullvad-vpn:
+    bind: $SNAP_DATA/var/cache/mullvad-vpn
+  /etc/mullvad-vpn:
+    bind: $SNAP_DATA/etc/mullvad-vpn
+  /var/log/mullvad-vpn:
+    bind: $SNAP_DATA/var/log/mullvad-vpn
